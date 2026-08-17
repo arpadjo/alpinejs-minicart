@@ -1,0 +1,9 @@
+@import 'tailwindcss';
+
+body {
+  @apply min-h-screen bg-slate-100 p-6 text-slate-900;
+}
+
+#app {
+  @apply mx-auto max-w-3xl rounded-lg bg-white p-6 shadow-sm;
+}
