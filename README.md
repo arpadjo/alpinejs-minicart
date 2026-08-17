@@ -56,6 +56,9 @@ Content-Type: application/json
 Set `qty` to `0` to remove an item. Invalid quantities return `422`; failed
 updates reload the cart so the UI rolls back to the server state.
 
+Network failures, client-side/API validation errors (`4xx`), and server errors
+(`5xx`) are surfaced with different UX messages and retry behavior.
+
 The response data is defined in `src/mocks/cart.ts` and its contract is defined
 in `src/types/cart.ts`. Both mock routes are available during `npm run dev`;
 they are not production API endpoints.

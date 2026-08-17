@@ -1,11 +1,31 @@
 import type { CartResponse } from '../types/cart.ts'
+import { CartApiError } from './errors.ts'
 
 export async function fetchCart(): Promise<CartResponse> {
-  const response = await fetch('/api/cart')
+  let response: Response
 
-  if (!response.ok) {
-    throw new Error(`Cart request failed with status ${response.status}`)
+  try {
+    response = await fetch('/api/cart')
+  } catch {
+    throw new CartApiError(
+      'network',
+      'We could not reach the cart service. Check your connection and try again.',
+    )
   }
 
-  return (await response.json()) as CartResponse
+  if (!response.ok) {
+    throw new CartApiError(
+      response.status >= 500 ? 'server' : 'client',
+      response.status >= 500
+        ? 'The cart service is temporarily unavailable. Please try again shortly.'
+        : 'The cart request was rejected. Please refresh and try again.',
+      response.status,
+    )
+  }
+
+  try {
+    return (await response.json()) as CartResponse
+  } catch {
+    throw new CartApiError('unknown', 'The cart response was invalid.')
+  }
 }

@@ -1,5 +1,6 @@
 import { updateCartItem } from '../api/cart-item.ts'
 import { fetchCart } from '../api/cart.ts'
+import { getCartErrorDetails, type CartErrorKind } from '../api/errors.ts'
 import type { Accessory, CartResponse, Product } from '../types/cart.ts'
 
 export type MinicartStatus = 'loading' | 'empty' | 'error' | 'ready'
@@ -8,12 +9,15 @@ export interface MinicartState {
   status: MinicartStatus
   cart: CartResponse | null
   errorMessage: string
+  errorKind: CartErrorKind | null
   actionError: string
+  actionErrorKind: CartErrorKind | null
   savingItems: Record<string, boolean>
   pendingQuantities: Record<string, number | undefined>
   requestVersions: Record<string, number>
   formatMoney: (value: string | number | null | undefined) => string
   hasAmount: (value: string | number | null | undefined) => boolean
+  errorTitle: (kind: CartErrorKind | null) => string
   itemTotal: (product: Product) => number | null
   itemKey: (shopId: number, product: Product) => string
   isSaving: (shopId: number, product: Product) => boolean
@@ -35,7 +39,9 @@ export function createMinicart(): MinicartState {
     status: 'loading',
     cart: null,
     errorMessage: '',
+    errorKind: null,
     actionError: '',
+    actionErrorKind: null,
     savingItems: {},
     pendingQuantities: {},
     requestVersions: {},
@@ -54,6 +60,19 @@ export function createMinicart(): MinicartState {
     hasAmount(value) {
       const amount = Number(value)
       return Number.isFinite(amount) && amount !== 0
+    },
+
+    errorTitle(kind) {
+      switch (kind) {
+        case 'network':
+          return 'Connection problem'
+        case 'client':
+          return 'Cart request rejected'
+        case 'server':
+          return 'Cart service unavailable'
+        default:
+          return 'Cart error'
+      }
     },
 
     itemKey(shopId, product) {
@@ -85,6 +104,7 @@ export function createMinicart(): MinicartState {
       const nextQuantity = this.normalizeQuantity(product, Number(quantity))
 
       this.actionError = ''
+      this.actionErrorKind = null
       this.requestVersions[key] = (this.requestVersions[key] ?? 0) + 1
       product.qty = nextQuantity
       this.pendingQuantities[key] = nextQuantity
@@ -98,6 +118,7 @@ export function createMinicart(): MinicartState {
       const key = this.itemKey(shopId, product)
 
       this.actionError = ''
+      this.actionErrorKind = null
       this.requestVersions[key] = (this.requestVersions[key] ?? 0) + 1
       this.pendingQuantities[key] = 0
 
@@ -146,16 +167,19 @@ export function createMinicart(): MinicartState {
           }
         }
       } catch (error) {
-        this.actionError =
-          error instanceof Error ? error.message : 'Unable to update the cart.'
+        const details = getCartErrorDetails(error)
+        this.actionError = details.message
+        this.actionErrorKind = details.kind
 
         try {
           this.cart = await fetchCart()
           this.status = this.cart.shops.length === 0 ? 'empty' : 'ready'
-        } catch {
+        } catch (reloadError) {
+          const reloadDetails = getCartErrorDetails(reloadError)
           this.cart = null
           this.status = 'error'
-          this.errorMessage = 'Unable to reload the cart after the update failed.'
+          this.errorKind = reloadDetails.kind
+          this.errorMessage = `The update failed and the cart could not be reloaded. ${reloadDetails.message}`
         }
       } finally {
         delete this.pendingQuantities[key]
@@ -236,6 +260,9 @@ export function createMinicart(): MinicartState {
     async loadCart() {
       this.status = 'loading'
       this.errorMessage = ''
+      this.errorKind = null
+      this.actionError = ''
+      this.actionErrorKind = null
 
       try {
         const cart = await fetchCart()
@@ -243,12 +270,11 @@ export function createMinicart(): MinicartState {
         this.cart = cart
         this.status = cart.shops.length === 0 ? 'empty' : 'ready'
       } catch (error) {
+        const details = getCartErrorDetails(error)
         this.cart = null
         this.status = 'error'
-        this.errorMessage =
-          error instanceof Error
-            ? error.message
-            : 'Unable to load the cart.'
+        this.errorKind = details.kind
+        this.errorMessage = details.message
       }
     },
   }
