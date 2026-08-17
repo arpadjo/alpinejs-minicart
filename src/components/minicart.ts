@@ -1,5 +1,5 @@
 import { fetchCart } from '../api/cart.ts'
-import type { CartResponse, Product } from '../types/cart.ts'
+import type { Accessory, CartResponse, Product } from '../types/cart.ts'
 
 export type MinicartStatus = 'loading' | 'empty' | 'error' | 'ready'
 
@@ -9,6 +9,10 @@ export interface MinicartState {
   errorMessage: string
   formatMoney: (value: string | number | null | undefined) => string
   itemTotal: (product: Product) => number | null
+  hasAccessories: (product: Product) => boolean
+  getAccessories: (product: Product) => Accessory[]
+  isMadeToOrder: (product: Product) => boolean
+  preparationMessage: (product: Product) => string
   init: () => Promise<void>
   loadCart: () => Promise<void>
 }
@@ -38,6 +42,30 @@ export function createMinicart(): MinicartState {
       }
 
       return unitPrice * product.qty
+    },
+
+    hasAccessories(product) {
+      const items = product.accessories?.items
+      return Array.isArray(items) && items.length > 0
+    },
+
+    getAccessories(product) {
+      const items = product.accessories?.items
+      return Array.isArray(items) ? items : []
+    },
+
+    isMadeToOrder(product) {
+      return Number(product.to_order_product) === 1
+    },
+
+    preparationMessage(product) {
+      const days = Number(product.to_order_product_time)
+
+      if (!Number.isFinite(days) || days <= 0) {
+        return 'Preparation time not specified.'
+      }
+
+      return `Prepared in ${days} business day${days === 1 ? '' : 's'}.`
     },
 
     async init() {
