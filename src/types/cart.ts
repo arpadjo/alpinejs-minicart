@@ -9,8 +9,8 @@ export interface CartResponse {
 export interface Shop {
   id: number
   name: string
-  avatar: string
-  link: string
+  avatar: string | null
+  link: string | null
   just_personal_orders: string
   cart_items: CartItem[]
   shipping: Shipping
@@ -42,10 +42,10 @@ export interface Product {
   to_order_product: number
   to_order_product_time: number
   specific_customer_id: number
-  image: string
+  image: string | null
   url: string
   variants: Record<string, number>
-  accessories: Accessories
+  accessories: Accessories | null
   unit_price: string
 }
 

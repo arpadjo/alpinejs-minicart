@@ -9,13 +9,92 @@
     <main id="app" x-data="minicart">
       <h1>Marketplace Minicart</h1>
 
-      <p x-show="status === 'loading'">Loading cart…</p>
-      <p x-show="status === 'empty'">Your cart is empty.</p>
-      <p x-show="status === 'error'" x-text="errorMessage"></p>
-      <p
-        x-show="status === 'ready'"
-        x-text="`${cart.shops.length} shop(s) in cart.`"
-      ></p>
+      <template x-if="status === 'loading'">
+        <p>Loading cart…</p>
+      </template>
+
+      <template x-if="status === 'empty'">
+        <p>Your cart is empty.</p>
+      </template>
+
+      <template x-if="status === 'error'">
+        <p x-text="errorMessage"></p>
+      </template>
+
+      <template x-if="status === 'ready' && cart">
+        <div class="mt-6 space-y-6">
+          <template x-for="shop in cart.shops" :key="shop.id">
+            <section class="rounded-lg border border-slate-200 p-4">
+              <div class="mb-4 flex items-center gap-3">
+                <template x-if="shop.avatar">
+                  <img
+                    class="h-10 w-10 rounded-full object-cover"
+                    :src="shop.avatar"
+                    :alt="`${shop.name} avatar`"
+                  />
+                </template>
+                <template x-if="!shop.avatar">
+                  <div
+                    class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600"
+                    aria-hidden="true"
+                  >
+                    <span x-text="shop.name?.charAt(0) || '?'">?</span>
+                  </div>
+                </template>
+
+                <a
+                  class="font-semibold text-slate-900 underline-offset-2 hover:underline"
+                  :href="shop.link || '#'"
+                  x-text="shop.name || 'Unknown shop'"
+                ></a>
+              </div>
+
+              <ul class="divide-y divide-slate-200">
+                <template x-for="cartItem in shop.cart_items" :key="cartItem.item.object_id">
+                  <li class="flex gap-4 py-4 first:pt-0 last:pb-0">
+                    <template x-if="cartItem.item.image">
+                      <img
+                        class="h-16 w-16 shrink-0 rounded-md object-cover"
+                        :src="cartItem.item.image"
+                        :alt="cartItem.item.name || 'Product image'"
+                      />
+                    </template>
+                    <template x-if="!cartItem.item.image">
+                      <div
+                        class="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs text-slate-400"
+                        aria-hidden="true"
+                      >
+                        No image
+                      </div>
+                    </template>
+
+                    <div class="min-w-0 flex-1">
+                      <p
+                        class="font-medium text-slate-900"
+                        x-text="cartItem.item.name || 'Unnamed product'"
+                      ></p>
+                      <p class="mt-1 text-sm text-slate-500">
+                        Qty: <span x-text="cartItem.item.qty ?? '—'"></span>
+                      </p>
+                    </div>
+
+                    <div class="shrink-0 text-right text-sm">
+                      <p
+                        class="text-slate-500"
+                        x-text="`${formatMoney(cartItem.item.price)} / ${cartItem.item.unit || 'unit'}`"
+                      ></p>
+                      <p
+                        class="mt-1 font-semibold text-slate-900"
+                        x-text="formatMoney(itemTotal(cartItem.item))"
+                      ></p>
+                    </div>
+                  </li>
+                </template>
+              </ul>
+            </section>
+          </template>
+        </div>
+      </template>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
