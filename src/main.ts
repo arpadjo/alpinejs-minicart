@@ -1,4 +1,5 @@
 import Alpine from 'alpinejs'
+import { createMinicart } from './components/minicart.ts'
 import './style.css'
 
 declare global {
@@ -9,4 +10,5 @@ declare global {
 
 window.Alpine = Alpine
 
+Alpine.data('minicart', createMinicart)
 Alpine.start()

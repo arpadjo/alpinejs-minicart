@@ -6,8 +6,16 @@
     <title>Marketplace Minicart</title>
   </head>
   <body>
-    <main id="app" x-data>
+    <main id="app" x-data="minicart">
       <h1>Marketplace Minicart</h1>
+
+      <p x-show="status === 'loading'">Loading cart…</p>
+      <p x-show="status === 'empty'">Your cart is empty.</p>
+      <p x-show="status === 'error'" x-text="errorMessage"></p>
+      <p
+        x-show="status === 'ready'"
+        x-text="`${cart.shops.length} shop(s) in cart.`"
+      ></p>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
