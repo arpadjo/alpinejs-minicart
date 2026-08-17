@@ -8,6 +8,7 @@ export interface MinicartState {
   cart: CartResponse | null
   errorMessage: string
   formatMoney: (value: string | number | null | undefined) => string
+  hasAmount: (value: string | number | null | undefined) => boolean
   itemTotal: (product: Product) => number | null
   hasAccessories: (product: Product) => boolean
   getAccessories: (product: Product) => Accessory[]
@@ -32,6 +33,11 @@ export function createMinicart(): MinicartState {
 
       const formattedAmount = new Intl.NumberFormat('hu-HU').format(amount)
       return `${formattedAmount} ${this.cart?.currency_symbol ?? ''}`.trim()
+    },
+
+    hasAmount(value) {
+      const amount = Number(value)
+      return Number.isFinite(amount) && amount !== 0
     },
 
     itemTotal(product) {
