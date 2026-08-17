@@ -40,9 +40,22 @@ The Vite development server exposes the typed mock response at:
 GET /api/cart
 ```
 
+Quantity updates use:
+
+```text
+PATCH /api/cart/item
+Content-Type: application/json
+
+{
+  "shop_id": 592000005565,
+  "object_id": "36e402497",
+  "qty": 3
+}
+```
+
 The response data is defined in `src/mocks/cart.ts` and its contract is defined
-in `src/types/cart.ts`. The mock route is available during `npm run dev`; it is
-not a production API server.
+in `src/types/cart.ts`. Both mock routes are available during `npm run dev`;
+they are not production API endpoints.
 
 ## Implementation notes
 

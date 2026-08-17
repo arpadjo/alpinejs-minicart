@@ -6,6 +6,12 @@ export interface CartResponse {
   grandtotal: Grandtotal
 }
 
+export interface UpdateCartItemRequest {
+  shop_id: number
+  object_id: string
+  qty: number
+}
+
 export interface Shop {
   id: number
   name: string
