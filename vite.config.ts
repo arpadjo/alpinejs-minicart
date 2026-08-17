@@ -123,8 +123,20 @@ export default defineConfig({
               (candidate) => candidate.item.object_id === payload.object_id,
             )
 
-            if (!cartItem) {
+            if (!shop || !cartItem) {
               sendJson(response, 404, { message: 'Cart item not found.' })
+              return
+            }
+
+            if (payload.qty === 0) {
+              shop.cart_items = shop.cart_items.filter(
+                (candidate) => candidate.item.object_id !== payload.object_id,
+              )
+              cartState.shops = cartState.shops.filter(
+                (candidate) => candidate.cart_items.length > 0,
+              )
+              recalculateCart(cartState)
+              sendJson(response, 200, cartState)
               return
             }
 

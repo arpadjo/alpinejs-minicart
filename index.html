@@ -23,6 +23,12 @@
 
       <template x-if="status === 'ready' && cart">
         <div class="mt-6 space-y-6">
+          <p
+            class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            x-show="actionError"
+            x-text="actionError"
+          ></p>
+
           <template x-for="shop in cart.shops" :key="shop.id">
             <section class="rounded-lg border border-slate-200 p-4">
               <div class="mb-4 flex items-center gap-3">
@@ -113,6 +119,14 @@
                         >
                           Saving…
                         </span>
+                        <button
+                          type="button"
+                          class="ml-2 text-xs text-red-600 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                          :disabled="isSaving(shop.id, cartItem.item)"
+                          @click="removeItem(shop.id, cartItem.item)"
+                        >
+                          Remove
+                        </button>
                       </div>
 
                       <template x-if="isMadeToOrder(cartItem.item)">

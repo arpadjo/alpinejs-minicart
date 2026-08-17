@@ -8,8 +8,10 @@ export interface MinicartState {
   status: MinicartStatus
   cart: CartResponse | null
   errorMessage: string
+  actionError: string
   savingItems: Record<string, boolean>
   pendingQuantities: Record<string, number | undefined>
+  requestVersions: Record<string, number>
   formatMoney: (value: string | number | null | undefined) => string
   hasAmount: (value: string | number | null | undefined) => boolean
   itemTotal: (product: Product) => number | null
@@ -17,7 +19,9 @@ export interface MinicartState {
   isSaving: (shopId: number, product: Product) => boolean
   normalizeQuantity: (product: Product, quantity: number) => number
   setQuantity: (shopId: number, product: Product, quantity: number | string) => Promise<void>
+  removeItem: (shopId: number, product: Product) => Promise<void>
   flushQuantity: (shopId: number, product: Product) => Promise<void>
+  preservePendingQuantities: (cart: CartResponse) => void
   hasAccessories: (product: Product) => boolean
   getAccessories: (product: Product) => Accessory[]
   isMadeToOrder: (product: Product) => boolean
@@ -31,8 +35,10 @@ export function createMinicart(): MinicartState {
     status: 'loading',
     cart: null,
     errorMessage: '',
+    actionError: '',
     savingItems: {},
     pendingQuantities: {},
+    requestVersions: {},
 
     formatMoney(value) {
       const amount = Number(value)
@@ -78,8 +84,37 @@ export function createMinicart(): MinicartState {
       const key = this.itemKey(shopId, product)
       const nextQuantity = this.normalizeQuantity(product, Number(quantity))
 
+      this.actionError = ''
+      this.requestVersions[key] = (this.requestVersions[key] ?? 0) + 1
       product.qty = nextQuantity
       this.pendingQuantities[key] = nextQuantity
+
+      if (!this.savingItems[key]) {
+        await this.flushQuantity(shopId, product)
+      }
+    },
+
+    async removeItem(shopId, product) {
+      const key = this.itemKey(shopId, product)
+
+      this.actionError = ''
+      this.requestVersions[key] = (this.requestVersions[key] ?? 0) + 1
+      this.pendingQuantities[key] = 0
+
+      if (this.cart) {
+        for (const shop of this.cart.shops) {
+          if (shop.id !== shopId) {
+            continue
+          }
+
+          shop.cart_items = shop.cart_items.filter(
+            (cartItem) => cartItem.item.object_id !== product.object_id,
+          )
+        }
+
+        this.cart.shops = this.cart.shops.filter((shop) => shop.cart_items.length > 0)
+        this.status = this.cart.shops.length === 0 ? 'empty' : 'ready'
+      }
 
       if (!this.savingItems[key]) {
         await this.flushQuantity(shopId, product)
@@ -93,6 +128,7 @@ export function createMinicart(): MinicartState {
       try {
         while (this.pendingQuantities[key] !== undefined) {
           const quantity = this.pendingQuantities[key] as number
+          const requestVersion = this.requestVersions[key]
           delete this.pendingQuantities[key]
 
           const cart = await updateCartItem({
@@ -102,32 +138,61 @@ export function createMinicart(): MinicartState {
           })
 
           this.cart = cart
+          const responseIsStale = this.requestVersions[key] !== requestVersion
+          const anotherItemIsPending = Object.keys(this.pendingQuantities).length > 0
 
-          const pendingQuantity = this.pendingQuantities[key]
-          if (pendingQuantity !== undefined) {
-            const currentProduct = this.cart.shops
-              .find((shop) => shop.id === shopId)
-              ?.cart_items.find((cartItem) => cartItem.item.object_id === product.object_id)
-              ?.item
-
-            if (currentProduct) {
-              currentProduct.qty = pendingQuantity
-            }
+          if (responseIsStale || anotherItemIsPending) {
+            this.preservePendingQuantities(cart)
           }
         }
       } catch (error) {
-        this.errorMessage =
+        this.actionError =
           error instanceof Error ? error.message : 'Unable to update the cart.'
 
         try {
           this.cart = await fetchCart()
+          this.status = this.cart.shops.length === 0 ? 'empty' : 'ready'
         } catch {
+          this.cart = null
           this.status = 'error'
+          this.errorMessage = 'Unable to reload the cart after the update failed.'
         }
       } finally {
         delete this.pendingQuantities[key]
         this.savingItems[key] = false
       }
+    },
+
+    preservePendingQuantities(cart) {
+      for (const [key, quantity] of Object.entries(this.pendingQuantities)) {
+        if (quantity === undefined) {
+          continue
+        }
+
+        const separatorIndex = key.indexOf(':')
+        const shopId = Number(key.slice(0, separatorIndex))
+        const objectId = key.slice(separatorIndex + 1)
+        const shop = cart.shops.find((candidate) => candidate.id === shopId)
+
+        if (!shop) {
+          continue
+        }
+
+        const itemIndex = shop.cart_items.findIndex(
+          (cartItem) => cartItem.item.object_id === objectId,
+        )
+
+        if (quantity === 0) {
+          if (itemIndex >= 0) {
+            shop.cart_items.splice(itemIndex, 1)
+          }
+        } else if (itemIndex >= 0) {
+          shop.cart_items[itemIndex].item.qty = quantity
+        }
+      }
+
+      cart.shops = cart.shops.filter((shop) => shop.cart_items.length > 0)
+      this.status = cart.shops.length === 0 ? 'empty' : 'ready'
     },
 
     itemTotal(product) {
